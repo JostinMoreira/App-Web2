@@ -1,0 +1,180 @@
+{
+  "name": "Workflow 2: Sincronización Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sheets-sync-reservas",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ce53552e-914b-4c4b-86f8-0465eb68c308",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "sheets-sync-reservas"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "col-fecha",
+              "name": "Fecha/Hora",
+              "type": "string",
+              "value": "={{ new Date($json.body?.timestamp || Date.now()).toLocaleString() }}"
+            },
+            {
+              "id": "col-tipo",
+              "name": "Tipo de Evento",
+              "type": "string",
+              "value": "={{ $json.body?.event || 'reserva.creada' }}"
+            },
+            {
+              "id": "col-id",
+              "name": "ID Registro",
+              "type": "number",
+              "value": "={{ $json.body?.data?.reserva_id || $json.body?.id || 0 }}"
+            },
+            {
+              "id": "col-desc",
+              "name": "Descripción",
+              "type": "string",
+              "value": "={{ $json.body?.data?.detalle || $json.body?.data?.libro || 'Sin descripción' }}"
+            },
+            {
+              "id": "col-user",
+              "name": "Usuario",
+              "type": "string",
+              "value": "={{ $json.body?.data?.usuario || 'Desconocido' }}"
+            },
+            {
+              "id": "col-estado",
+              "name": "Estado",
+              "type": "string",
+              "value": "={{ $json.body?.data?.status || 'Pendiente' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f5006018-d248-4f48-a836-a3765391aa57",
+      "name": "Transformar Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1RsMYr1CQc_PPwsulNdbiF4Jy-Eacl_7egKPDmeeSSw0",
+          "mode": "list",
+          "cachedResultName": "Guardar registro",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RsMYr1CQc_PPwsulNdbiF4Jy-Eacl_7egKPDmeeSSw0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RsMYr1CQc_PPwsulNdbiF4Jy-Eacl_7egKPDmeeSSw0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d7e1892f-d353-4ad1-9bb5-8a9871f8c576",
+      "name": "Google Sheets (Append)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "kVCajthJnKHMgAD3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Registro agregado a Google Sheets\",\n  \"event_id\": \"{{ $('Webhook Trigger').first().json.body.id }}\"\n}",
+        "options": {}
+      },
+      "id": "05625d4f-091e-4d43-b51e-cc39005711a2",
+      "name": "Respuesta OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        608,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Transformar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transformar Datos": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets (Append)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets (Append)": {
+      "main": [
+        [
+          {
+            "node": "Respuesta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "db71d890-a991-411a-915a-f7f38aca34d1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "66662e312b21f7ba8a072bf954b6dfb89d76fc95b4d5fb4482f96fbb66a4af42"
+  },
+  "id": "bQDXvGAsXW8GL6dhs92E2",
+  "tags": []
+}

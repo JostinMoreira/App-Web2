@@ -1,0 +1,38 @@
+{
+    "name":"mcp-ia",
+    "version":"1.0.0",
+    "description":"Model Context Protocol (MCP): Integración de IA con Microservicios Usuarios - Reserva",
+    "private":true,
+    "scripts": {
+        "install:all": "npm install && cd apps/backend && npm install && cd ../mcp-server && npm install && cd ../api-gateway && npm install",
+        "dev:backend": "cd apps/backend && npm run start:dev",
+        "dev:mcp":"cd apps/mcp-server && npm run start:dev",
+        "dev:gateway":"cd apps/api-gateway && npm run start:dev",
+        "dev:all": "npm run install:all && concurrently \"npm run dev:backend\" \"npm run dev:mcp\" \"npm run dev:gateway\""
+    },
+    "keywords": [
+        "mcp",
+        "model-Context-Protocol",
+        "gemini",
+        "ai",
+        "invoice-processing",
+        "nest-js",
+        "typescript"
+    ],
+    "author": {
+        "name": "Cristopher Emanuel Anchundia Delgado",
+        "email": "cristopheromg35q@gmail.com"
+    },
+    "contributors": [
+        {
+            "name": "Jostin Antonio Moreira Zambrano"
+        },
+        {
+            "name": "Ronny Josue Pilay Anchundia"
+        }
+    ],
+    "license": "MIT",
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}

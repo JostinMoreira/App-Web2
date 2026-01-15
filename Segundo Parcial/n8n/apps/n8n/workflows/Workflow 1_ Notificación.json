@@ -1,0 +1,216 @@
+{
+  "name": "Workflow 1: Notificación",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reserva-workflow",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "69842ca4-b2c8-4651-94c5-3e7ac4f345a9",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "reserva-workflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body?.data?.usuario || '' }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "2f386202-26c0-4338-97e0-830d1becf454",
+      "name": "Validar Datos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyDKOpS_sJIpYnHCdXBydSGIos90etrDrn4",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"Genera un mensaje de notificación corto y amigable (máximo 150 caracteres) para informar que el usuario {{ $json.body.data.usuario }} ha realizado una reserva con detalle '{{ $json.body.data.detalle }}'. El mensaje debe ser en español, formal y claro. Solo responde con el mensaje.\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "1d24d11b-0b86-4fc1-92a6-42e0cd7648a5",
+      "name": "Gemini - Generar Mensaje",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg-gemini",
+              "name": "mensaje_gemini",
+              "type": "string",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            },
+            {
+              "id": "usuario",
+              "name": "usuario",
+              "type": "string",
+              "value": "={{ $('Webhook Trigger').first().json.body.data.usuario }}"
+            },
+            {
+              "id": "libro",
+              "name": "libro",
+              "type": "string",
+              "value": "={{ $('Webhook Trigger').first().json.body.data.detalle }}"
+            },
+            {
+              "id": "reserva-id",
+              "name": "reserva_id",
+              "type": "string",
+              "value": "={{ $('Webhook Trigger').first().json.body.data.reserva_id }}"
+            },
+            {
+              "id": "ts",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $('Webhook Trigger').first().json.body.timestamp }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "77843e69-c441-4f18-b36d-fcd25fc0c1f8",
+      "name": "Combinar Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        608,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "=8404657816",
+        "text": "=📚 *Reserva Confirmada*\n\n{{ $json.mensaje_gemini }}\n\n📋 *Detalles de Reserva:*\n• Usuario: {{ $json.usuario }}\n• Detalle: {{ $json.libro }}\n• ID Reserva: `{{ $json.reserva_id }}`\n• Fecha: {{ $json.timestamp }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "f9028847-f2f8-4933-a131-8a7e5c94e6d8",
+      "name": "Telegram - Notificar",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        0
+      ],
+      "webhookId": "ec7958dc-ba7b-4815-aec3-14aafc815d39",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmFES87gQZOAVm6L",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Notificación enviada exitosamente\",\n  \"event_id\": \"{{ $('Webhook Trigger').first().json.body.id }}\",\n  \"workflow\": \"notificacion-tiempo-real\"\n}",
+        "options": {}
+      },
+      "id": "8133c413-6a0f-48ff-bf18-c66f106720aa",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Datos": {
+      "main": [
+        [
+          {
+            "node": "Gemini - Generar Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini - Generar Mensaje": {
+      "main": [
+        [
+          {
+            "node": "Combinar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Datos": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Notificar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Notificar": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "934159f4-b055-467d-9fa4-ed5118be313d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "66662e312b21f7ba8a072bf954b6dfb89d76fc95b4d5fb4482f96fbb66a4af42"
+  },
+  "id": "CYDpqsF0QMKGSBOJjzrH2",
+  "tags": []
+}

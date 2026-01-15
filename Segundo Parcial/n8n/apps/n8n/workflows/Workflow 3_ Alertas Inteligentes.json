@@ -1,0 +1,397 @@
+{
+  "name": "Workflow 3: Alertas Inteligentes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alertas-reserva-workflow",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c65a8468-aba6-4cfb-98e9-d47cb7b9ae6e",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        208
+      ],
+      "webhookId": "alertas-reserva-workflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "event",
+              "name": "event",
+              "type": "string",
+              "value": "={{ $json.body?.event || $json.event || '' }}"
+            },
+            {
+              "id": "id",
+              "name": "id",
+              "type": "string",
+              "value": "={{ $json.body?.id || $json.id || '' }}"
+            },
+            {
+              "id": "urgencia",
+              "name": "urgencia",
+              "type": "string",
+              "value": "={{ (() => { const data = $json.body?.data || $json.data || {}; const evt = ($json.body?.event || $json.event || '').toLowerCase(); const status = (data.status || '').toLowerCase(); if (evt.includes('cancel') || evt.includes('error') || status === 'vencido' || status === 'error') return 'ALTA'; if (status === 'pendiente' || evt.includes('pending') || evt.includes('proximo')) return 'MEDIA'; return 'BAJA'; })() }}"
+            },
+            {
+              "id": "razon",
+              "name": "razon",
+              "type": "string",
+              "value": "={{ (() => { const data = $json.body?.data || $json.data || {}; const evt = ($json.body?.event || $json.event || '').toLowerCase(); const status = (data.status || '').toLowerCase(); if (evt.includes('cancel')) return 'Reserva cancelada'; if (status === 'error') return 'Error crítico en reserva'; if (status === 'pendiente') return 'Pendiente de aprobación'; return 'Evento normal'; })() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "58e29c8b-9147-424e-86d1-2c5cb1103433",
+      "name": "Clasificar Urgencia",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1008,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.urgencia }}",
+              "operation": "notEqual",
+              "value2": "BAJA"
+            }
+          ]
+        }
+      },
+      "id": "214023c1-43c2-4929-84ca-28fe327f704b",
+      "name": "Es Critico?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyDKOpS_sJIpYnHCdXBydSGIos90etrDrn4",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { contents: [{ parts: [{ text: 'Genera un mensaje de alerta corto (máximo 100 caracteres) en español para notificar sobre este evento de reserva: ' + $json.event + ' con urgencia ' + $json.urgencia + '. Razón: ' + $json.razon + '. Solo responde con el mensaje, sin explicaciones.' }] }] } }}",
+        "options": {}
+      },
+      "id": "6fea17b9-1834-445f-82f8-9bcea7d05108",
+      "name": "Gemini - Generar Mensaje",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -608,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "msg",
+              "name": "mensaje_gemini",
+              "type": "string",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5f278665-7ef0-4723-9692-dc43a3335048",
+      "name": "Combinar Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $('Clasificar Urgencia').first().json.urgencia }}",
+                    "rightValue": "ALTA"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "alta"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $('Clasificar Urgencia').first().json.urgencia }}",
+                    "rightValue": "MEDIA"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "media"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "956f00d0-2119-49e5-b4fd-1ed477c59b59",
+      "name": "Switch Urgencia",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -208,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "=8404657816",
+        "text": "=🚨 *ALERTA RESERVAS - URGENCIA ALTA*\n\n{{ $json.mensaje_gemini }}\n\n⚠️ *Requiere atención inmediata*",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "6adbb433-4d34-4ea4-8b09-0f4e1a01b319",
+      "name": "Telegram - Alta",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c0959a1b-34b0-4615-8a69-868900024652",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmFES87gQZOAVm6L",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "admin@uleam.edu.ec",
+        "subject": "Alerta Media - Reservas",
+        "message": "=⚠️ Alerta: {{ $json.mensaje_gemini }}",
+        "options": {}
+      },
+      "id": "9865a18b-f409-40d2-a19d-1804cd6ac25a",
+      "name": "Email - Media",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        208
+      ],
+      "webhookId": "930e0c45-7d2c-422d-86a3-87c9acd4210d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "PdmWlJb2RPxfXzHy",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "log-msg",
+              "name": "log_message",
+              "type": "string",
+              "value": "Evento procesado sin alerta (BAJA urgencia)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7b0c8c8c-0d30-426a-b9e7-fa73a2086c41",
+      "name": "Log - Baja",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -608,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Alerta procesada\"\n}",
+        "options": {}
+      },
+      "id": "6cf6ccca-d712-432a-a994-60b26983b44b",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        112
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Clasificar Urgencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar Urgencia": {
+      "main": [
+        [
+          {
+            "node": "Es Critico?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es Critico?": {
+      "main": [
+        [
+          {
+            "node": "Gemini - Generar Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log - Baja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini - Generar Mensaje": {
+      "main": [
+        [
+          {
+            "node": "Combinar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Datos": {
+      "main": [
+        [
+          {
+            "node": "Switch Urgencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Urgencia": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Alta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email - Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Alta": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Media": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log - Baja": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "90ed307e-d909-4420-a6b5-8a0df19ac188",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "66662e312b21f7ba8a072bf954b6dfb89d76fc95b4d5fb4482f96fbb66a4af42"
+  },
+  "id": "Dati4K0PNuH8qrBWrNxuT",
+  "tags": []
+}
